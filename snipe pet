@@ -1,0 +1,135 @@
+repeat
+    task.wait()
+until game:IsLoaded()
+
+local v0 = game:GetService("Players")
+local v1 = v0.LocalPlayer
+
+if not v1.Character then
+    v1.CharacterAdded:Wait()
+end
+
+task.wait(3)
+
+local v2 = game:GetService("ReplicatedStorage")
+local v3 = v2:WaitForChild("GameEvents", 30):WaitForChild("TradeEvents", 30):WaitForChild("Booths", 30):WaitForChild("BuyListing", 30)
+local v4 = v2:WaitForChild("GameEvents", 30):WaitForChild("TradeEvents", 30):WaitForChild("TokenRAPs", 30)
+local v5 = v4:WaitForChild("FindSellers", 30)
+local v6 = v4:WaitForChild("TeleportToListing", 30)
+
+local v7 = require(v2.Modules.ReplicationReciever)
+local v8 = v7.new("Booths")
+local v9 = require(v2.Data.TradeBoothsData)
+
+local v10 = {
+    ["Cuckoo"] = true,
+    ["Black Bird"] = true,
+    ["Browl Owl"] = true,
+    ["Gold Finch"] = true,
+    ["Birb"] = true
+}
+
+local v11 = {"Cuckoo", "Black Bird", "Browl Owl", "Gold Finch", "Birb"}
+local v12 = 26
+local v13 = "Birb Egg"
+local v14 = {}
+
+local function v15(v16)
+    if not v16 then
+        return
+    end
+    print("🚀 Teleporting to listing: " .. v16)
+    pcall(function()
+        v6:InvokeServer(v16)
+    end)
+end
+
+task.spawn(function()
+    local v17 = 1
+    while true do
+        task.wait(2)
+
+        local v18 = v8:GetDataAsync()
+        local v19 = false
+
+        if v18 then
+            for v28, v29 in pairs(v18.Booths) do
+                local v30 = v18.Players[v29.Owner]
+                if v30 then
+                    for v33, v34 in pairs(v30.Listings) do
+                        local v35 = v30.Items[v34.ItemId]
+                        if v35 and v10[v35.PetType] and v35.PetData and (v35.PetData.HatchedFrom == v13) and (v34.Price <= v12) then
+                            v19 = true
+                            break
+                        end
+                    end
+                end
+            end
+        end
+
+        if not v19 then
+            local v24 = v11[v17]
+            print("🔍 Searching: " .. v24)
+
+            local v25, v26, v27 = pcall(function()
+                return v5:InvokeServer("Pet", {
+                    PetData = { MutationType = "Normal" },
+                    PetType = v24,
+                    PetAbility = {}
+                })
+            end)
+
+            if v25 and v26 and v27 then
+                v15(v27)
+                task.wait(10)
+            end
+
+            v17 = (v17 % #v11) + 1
+        end
+    end
+end)
+
+print("🚀 Auto Buy Started | Target: " .. v13 .. " | Price <= " .. v12)
+
+while true do
+    task.wait(1)
+
+    pcall(function()
+        local v20 = v8:GetDataAsync()
+        if not v20 then
+            return
+        end
+
+        for v21, v22 in pairs(v20.Booths) do
+            local v23 = v22.Owner
+            if v23 then
+                local v31 = v20.Players[v23]
+                local v32 = v9.getPlayerById(v23)
+
+                if v31 and v32 and (v32 ~= v1) then
+                    for v36, v37 in pairs(v31.Listings) do
+                        if not v14[v36] then
+                            local v38 = v31.Items[v37.ItemId]
+                            if v38 then
+                                local v39 = v38.PetData and v38.PetData.HatchedFrom
+
+                                if not v10[v38.PetType] then
+                                    -- Abaikan pet yang tidak masuk daftar target
+                                elseif v39 ~= v13 then
+                                    print("⏭️ Skip: " .. v38.PetType .. " (Egg: " .. (v39 or "Unknown") .. ")")
+                                    v14[v36] = true
+                                elseif v37.Price > v12 then
+                                    print("⏭️ Skip: " .. v38.PetType .. " (Mahal: " .. v37.Price .. ")")
+                                else
+                                    print("✅ BUY: " .. v38.PetType .. " | Harga: " .. v37.Price)
+                                    v14[v36] = true
+                                    v3:InvokeServer(v32, v36)
+                                end
+                            end
+                        end
+                    end
+                end
+            end
+        end
+    end)
+end
